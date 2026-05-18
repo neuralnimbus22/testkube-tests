@@ -1,14 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-// Base URL is configurable — defaults to local port-forward when not set.
-// In Testkube workflows, BASE_URL gets injected to point at cluster DNS.
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
-
 test.describe('Online Boutique Homepage', () => {
 
   test('homepage loads and shows the Hot Products grid', async ({ page }) => {
-    // Navigate to the storefront
-    await page.goto(BASE_URL);
+    // Navigate to the storefront (baseURL comes from playwright.config.ts)
+    await page.goto('/');
 
     // Verify browser tab title
     await expect(page).toHaveTitle(/Online Boutique/i);

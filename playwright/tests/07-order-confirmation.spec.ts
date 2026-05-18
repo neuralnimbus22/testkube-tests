@@ -1,14 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-// Base URL is configurable — defaults to local port-forward when not set.
-// In Testkube workflows, BASE_URL gets injected to point at cluster DNS.
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
-
 test.describe('Online Boutique Order Confirmation', () => {
 
   test('order confirmation page appears after completing checkout', async ({ page }) => {
     // Self-contained setup: drive the full happy path from homepage → confirmation
-    await page.goto(BASE_URL);
+    await page.goto('/');
     await page.locator('.hot-product-card').first().locator('a').click();
     await expect(page).toHaveURL(/\/product\/[A-Z0-9]+/);
     await page.getByRole('button', { name: 'Add To Cart' }).click();

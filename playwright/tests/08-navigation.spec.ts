@@ -1,14 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-// Base URL is configurable — defaults to local port-forward when not set.
-// In Testkube workflows, BASE_URL gets injected to point at cluster DNS.
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8080';
-
 test.describe('Online Boutique Navigation', () => {
 
   test('header and footer navigation links are present and reachable', async ({ page }) => {
     // Start from the storefront so the test is fully self-contained
-    await page.goto(BASE_URL);
+    await page.goto('/');
 
     // The brand link in the header should point at the homepage
     const brandLink = page.locator('a.navbar-brand');
@@ -43,7 +39,7 @@ test.describe('Online Boutique Navigation', () => {
 
     // And the brand link gets us back to the homepage
     await page.locator('a.navbar-brand').click();
-    await expect(page).toHaveURL(new RegExp(`^${BASE_URL}/?$`));
+    await expect(page).toHaveURL('/');
     await expect(page.getByRole('heading', { name: 'Hot Products' })).toBeVisible();
 
     // Take a screenshot for the test report
