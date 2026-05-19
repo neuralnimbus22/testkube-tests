@@ -2,32 +2,54 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Online Boutique View Cart', () => {
 
-  test('view cart page shows the added item', async ({ page }) => {
-    // Self-contained setup: open a product detail page and add the item
+  test('view cart page shows the added items', async ({ page }, testInfo) => {
+    // Open the storefront and let the grid finish loading
     await page.goto('/');
-    const firstCard = page.locator('.hot-product-card').first();
-    const productName = (await firstCard.locator('.hot-product-card-name').innerText()).trim();
-    await firstCard.locator('a').click();
-    await expect(page).toHaveURL(/\/product\/[A-Z0-9]+/);
-    await page.getByRole('button', { name: 'Add To Cart' }).click();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
 
-    // The add-to-cart form posts to /cart, so we should land on the cart page
-    await expect(page).toHaveURL(/\/cart$/);
+    // Add the first two products to the cart one at a time so the assertion
+    // reflects multiple round-trips through the cartservice, not just one.
+    const ITEMS_TO_ADD = 2;
+    const addedNames: string[] = [];
 
-    // Verify the cart heading reflects 1 item
-    // (cartservice has to respond for the cart contents to render)
-    await expect(page.getByRole('heading', { name: 'Cart (1)' })).toBeVisible();
+    for (let i = 0; i < ITEMS_TO_ADD; i++) {
+      // Bounce back to the homepage between adds (the storefront redirects to
+      // /cart after a successful POST, so we need to navigate fresh each loop).
+      if (i > 0) {
+        await page.locator('a.navbar-brand').click();
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(1500);
+      }
 
-    // Verify the added item appears in the cart summary by SKU + product name
-    const itemRow = page.locator('.cart-summary-item-row').first();
-    await expect(itemRow).toBeVisible();
-    await expect(itemRow.getByRole('heading', { name: productName })).toBeVisible();
+      const card = page.locator('.hot-product-card').nth(i);
+      const name = (await card.locator('.hot-product-card-name').innerText()).trim();
+      addedNames.push(name);
 
-    // Verify the cart shows a Total row (shippingservice + currencyservice round-trip)
+      await card.locator('a').click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1500);
+      await page.getByRole('button', { name: 'Add To Cart' }).click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1500);
+    }
+
+    // Navigate explicitly to the cart and verify the heading reflects the count
+    await page.goto('/cart');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole('heading', { name: `Cart (${ITEMS_TO_ADD})` })).toBeVisible();
+
+    // Every product we added should appear as its own row in the cart summary
+    for (const name of addedNames) {
+      await expect(
+        page.locator('.cart-summary-item-row').filter({ hasText: name })
+      ).toBeVisible();
+    }
+
+    // The cart total row should be rendered (shipping + currency round-trip)
     await expect(page.locator('.cart-summary-total-row')).toBeVisible();
-
-    // Take a screenshot for the test report
-    await page.screenshot({ path: 'screenshots/04-view-cart.png', fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('cart.png'), fullPage: true });
   });
 
 });

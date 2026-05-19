@@ -2,30 +2,40 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Online Boutique Product Detail', () => {
 
-  test('product detail page loads when clicking a product', async ({ page }) => {
-    // Start from the storefront so the test is fully self-contained
+  test('product detail page loads when clicking a product', async ({ page }, testInfo) => {
+    // Start at the storefront and let the catalog render
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
-    // Grab the name of the first product card so we can assert on it after navigation
+    // Capture the first card's name so we can assert on it after navigation
     const firstCard = page.locator('.hot-product-card').first();
     await expect(firstCard).toBeVisible();
-    const productName = (await firstCard.locator('.hot-product-card-name').innerText()).trim();
+    const firstName = (await firstCard.locator('.hot-product-card-name').innerText()).trim();
 
-    // Click the first product's image link to navigate to the detail page
-    // (productcatalogservice has to respond for the detail page to render)
+    // Visit the first product's detail page
     await firstCard.locator('a').click();
-
-    // URL should now be the product detail route
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
     await expect(page).toHaveURL(/\/product\/[A-Z0-9]+/);
+    await expect(page.getByRole('heading', { name: firstName })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('product-1.png'), fullPage: true });
 
-    // Verify the product name heading is rendered
-    await expect(page.getByRole('heading', { name: productName })).toBeVisible();
+    // Hop through a second product to exercise multiple catalog round-trips
+    await page.locator('a.navbar-brand').click();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
-    // Verify the Add To Cart button is present on the detail page
+    const secondCard = page.locator('.hot-product-card').nth(1);
+    const secondName = (await secondCard.locator('.hot-product-card-name').innerText()).trim();
+    await secondCard.locator('a').click();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+    await expect(page.getByRole('heading', { name: secondName })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('product-2.png'), fullPage: true });
+
+    // The detail page should always expose the Add To Cart affordance
     await expect(page.getByRole('button', { name: 'Add To Cart' })).toBeVisible();
-
-    // Take a screenshot for the test report
-    await page.screenshot({ path: 'screenshots/02-product-detail.png', fullPage: true });
   });
 
 });

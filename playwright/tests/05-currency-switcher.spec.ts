@@ -2,33 +2,43 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Online Boutique Currency Switcher', () => {
 
-  test('switching from USD to EUR updates displayed prices', async ({ page }) => {
-    // Start from the storefront so the test is fully self-contained
+  test('switching currency updates displayed prices', async ({ page }, testInfo) => {
+    // Land on the storefront and let the grid + initial USD prices render
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
-    // The header currency dropdown is the first <select> on the page,
-    // matching the pattern used by the existing storefront spec.
+    // Verify the dropdown is parked on USD and prices reflect that
     const currencyDropdown = page.locator('select').first();
     await expect(currencyDropdown).toHaveValue('USD');
+    await expect(page.locator('.hot-product-card-price').first()).toContainText('$');
+    await page.screenshot({ path: testInfo.outputPath('prices-usd.png'), fullPage: true });
 
-    // Prices on the homepage should be in USD ($) before switching
-    const firstPrice = page.locator('.hot-product-card-price').first();
-    await expect(firstPrice).toContainText('$');
+    // Walk through three currencies, asserting on the symbol each time.
+    // Each switch posts to /setCurrency and reloads, so it's a real round-trip
+    // through the currencyservice — not just a client-side relabel.
+    const steps: Array<{ code: string; symbol: string; notSymbol: string }> = [
+      { code: 'EUR', symbol: '€', notSymbol: '$' },
+      { code: 'JPY', symbol: '¥', notSymbol: '€' },
+      { code: 'GBP', symbol: '£', notSymbol: '¥' },
+      { code: 'USD', symbol: '$', notSymbol: '£' },
+    ];
 
-    // Switching the dropdown auto-submits the currency form and reloads the page
-    // (currencyservice has to respond for the new prices to render)
-    await currencyDropdown.selectOption('EUR');
+    for (const step of steps) {
+      await page.locator('select').first().selectOption(step.code);
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000);
 
-    // After the reload, the dropdown should reflect the new selection
-    await expect(page.locator('select').first()).toHaveValue('EUR');
+      await expect(page.locator('select').first()).toHaveValue(step.code);
+      const firstPrice = page.locator('.hot-product-card-price').first();
+      await expect(firstPrice).toContainText(step.symbol);
+      await expect(firstPrice).not.toContainText(step.notSymbol);
 
-    // And prices on the homepage should now use the Euro symbol instead of the dollar sign
-    const newFirstPrice = page.locator('.hot-product-card-price').first();
-    await expect(newFirstPrice).toContainText('€');
-    await expect(newFirstPrice).not.toContainText('$');
-
-    // Take a screenshot for the test report
-    await page.screenshot({ path: 'screenshots/05-currency-switcher.png', fullPage: true });
+      await page.screenshot({
+        path: testInfo.outputPath(`prices-${step.code.toLowerCase()}.png`),
+        fullPage: true,
+      });
+    }
   });
 
 });
