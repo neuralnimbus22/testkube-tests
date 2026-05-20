@@ -1,0 +1,21 @@
+name: TestKube — Run Sequential Playwright Tests
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+jobs:
+  run-testkube-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup TestKube CLI
+        uses: kubeshop/setup-testkube@v1
+        with:
+          organization: ${{ secrets.TK_ORG_ID }}
+          environment: ${{ secrets.TK_ENV_ID }}
+          token: ${{ secrets.TK_API_TOKEN }}
+          url: testkube.io
+
+      - name: Run sequential Playwright workflow
+        run: testkube run testworkflow online-boutique-playwright-sequential -f
