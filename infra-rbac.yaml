@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: online-boutique
+  name: online-boutique-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: online-boutique
+  name: testkube-executor-can-read-online-boutique
+subjects:
+  - kind: ServiceAccount
+    name: exec-sa-testkube-local-laptop
+    namespace: local-laptop
+roleRef:
+  kind: Role
+  name: online-boutique-reader
+  apiGroup: rbac.authorization.k8s.io
